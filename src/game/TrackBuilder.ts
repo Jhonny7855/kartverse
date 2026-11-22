@@ -259,7 +259,7 @@ function buildStartGantry(spline: TrackSpline, def: TrackDef): THREE.Group {
   const s = spline.sampleAtDistance(0);
   const angle = Math.atan2(s.tangent.x, s.tangent.z);
   const accent = new THREE.Color(def.palette.accent);
-  const structMat = new THREE.MeshStandardMaterial({ color: 0x11151f, metalness: 0.8, roughness: 0.25 });
+  const structMat = new THREE.MeshStandardMaterial({ color: 0x2b3348, metalness: 0.75, roughness: 0.35 });
   const glowMat = new THREE.MeshStandardMaterial({
     color: accent,
     emissive: accent,
@@ -283,11 +283,29 @@ function buildStartGantry(spline: TrackSpline, def: TrackDef): THREE.Group {
   beam.rotation.y = angle;
   group.add(beam);
 
-  const banner = new THREE.Mesh(new THREE.BoxGeometry(s.width + 1.6, 2.1, 0.14), glowMat);
+  const bannerMat = new THREE.MeshStandardMaterial({
+    color: accent.clone().multiplyScalar(0.32),
+    emissive: accent,
+    emissiveIntensity: 0.85,
+    metalness: 0.4,
+    roughness: 0.5,
+  });
+  const banner = new THREE.Mesh(new THREE.BoxGeometry(s.width + 1.6, 2.1, 0.14), bannerMat);
   banner.position.copy(beam.position);
   banner.position.y -= 1.6;
   banner.rotation.y = angle;
   group.add(banner);
+
+  // Underside panel so the beam reads as a lit gantry from the grid rather than a black slab.
+  const soffit = new THREE.Mesh(
+    new THREE.PlaneGeometry(s.width + 4.4, 1.3),
+    new THREE.MeshBasicMaterial({ color: accent.clone().multiplyScalar(0.18), side: THREE.DoubleSide }),
+  );
+  soffit.position.copy(s.position);
+  soffit.position.y += 7.2;
+  soffit.rotation.x = Math.PI / 2;
+  soffit.rotation.z = -angle;
+  group.add(soffit);
 
   const lightCount = 5;
   for (let i = 0; i < lightCount; i++) {

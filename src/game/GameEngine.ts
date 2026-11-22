@@ -598,7 +598,6 @@ export class GameEngine {
     const segY = player.y + 0.5 - cam.y;
     const segZ = player.z - cam.z;
     const segLenSq = segX * segX + segY * segY + segZ * segZ;
-    const segLen = Math.sqrt(segLenSq) || 1;
     for (const kart of this.race.karts) {
       if (kart.isPlayer) continue;
       const model = this.kartModels.get(kart.id);
@@ -606,13 +605,15 @@ export class GameEngine {
       const dx = kart.position.x - cam.x;
       const dy = kart.position.y + 0.5 - cam.y;
       const dz = kart.position.z - cam.z;
+      const camDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       const along = (dx * segX + dy * segY + dz * segZ) / segLenSq;
-      const perpSq = Math.max(0, dx * dx + dy * dy + dz * dz - along * along * segLenSq);
-      const perp = Math.sqrt(perpSq);
-      const blocking = along > 0.04 && along < 0.98 && perp < 2.6;
-      model.setFade(blocking ? 0 : 1, dt);
-      model.root.visible = !kart.eliminated && (!blocking || model.opacityNow > 0.02);
-      void segLen;
+      // A rival closer to the lens than the player is a tailgater: its body
+      // swallows the frame and covers the HUD, so it ramps out with proximity.
+      // Karts level with or ahead of the player stay fully visible.
+      const tailgating = along < 0.94 && camDist < 10.5;
+      const target = tailgating ? clamp((camDist - 8) / 2.5, 0, 1) : 1;
+      model.setFade(target, dt);
+      model.root.visible = !kart.eliminated && (target > 0.02 || model.opacityNow > 0.02);
     }
   }
 
