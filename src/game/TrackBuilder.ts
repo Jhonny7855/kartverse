@@ -290,9 +290,9 @@ function buildStartGantry(spline: TrackSpline, def: TrackDef): THREE.Group {
     metalness: 0.4,
     roughness: 0.5,
   });
-  const banner = new THREE.Mesh(new THREE.BoxGeometry(s.width + 1.6, 2.1, 0.14), bannerMat);
+  const banner = new THREE.Mesh(new THREE.BoxGeometry(s.width + 1.6, 1.3, 0.14), bannerMat);
   banner.position.copy(beam.position);
-  banner.position.y -= 1.6;
+  banner.position.y += 1.05;
   banner.rotation.y = angle;
   group.add(banner);
 
@@ -308,13 +308,20 @@ function buildStartGantry(spline: TrackSpline, def: TrackDef): THREE.Group {
   group.add(soffit);
 
   const lightCount = 5;
+  const housingGeo = new THREE.BoxGeometry(0.62, 0.3, 0.3);
   for (let i = 0; i < lightCount; i++) {
+    const housing = new THREE.Mesh(housingGeo, structMat);
+    housing.position.copy(s.position).addScaledVector(s.right, (i - 2) * 1.7);
+    housing.position.y += 5.9;
+    housing.rotation.y = angle;
+    group.add(housing);
     const light = new THREE.Mesh(
-      new THREE.SphereGeometry(0.28, 12, 10),
-      new THREE.MeshBasicMaterial({ color: 0x2a0e0e }),
+      new THREE.SphereGeometry(0.22, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0x3d1212 }),
     );
-    light.position.copy(s.position).addScaledVector(s.right, (i - 2) * 1.7);
-    light.position.y += 5.9;
+    light.position.copy(housing.position);
+    light.position.y -= 0.16;
+    light.position.addScaledVector(s.tangent, 0.16);
     group.add(light);
   }
   return group;

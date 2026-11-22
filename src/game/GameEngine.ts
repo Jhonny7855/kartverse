@@ -606,12 +606,13 @@ export class GameEngine {
       const dy = kart.position.y + 0.5 - cam.y;
       const dz = kart.position.z - cam.z;
       const camDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      const along = (dx * segX + dy * segY + dz * segZ) / segLenSq;
-      // A rival closer to the lens than the player is a tailgater: its body
-      // swallows the frame and covers the HUD, so it ramps out with proximity.
-      // Karts level with or ahead of the player stay fully visible.
-      const tailgating = along < 0.94 && camDist < 10.5;
-      const target = tailgating ? clamp((camDist - 8) / 2.5, 0, 1) : 1;
+      const along = segLenSq > 1e-4 ? (dx * segX + dy * segY + dz * segZ) / segLenSq : 1;
+      const perp = Math.sqrt(Math.max(0, dx * dx + dy * dy + dz * dz - along * along * segLenSq));
+      // Only a rival that genuinely stands between the lens and the player is faded
+      // out. Karts running alongside or ahead are part of the race and stay solid.
+      const occluding = along > 0.05 && along < 0.95 && perp < 2.7;
+      const clipping = camDist < 3.4;
+      const target = clipping ? clamp((camDist - 1.6) / 1.8, 0, 1) : occluding ? 0 : 1;
       model.setFade(target, dt);
       model.root.visible = !kart.eliminated && (target > 0.02 || model.opacityNow > 0.02);
     }

@@ -150,6 +150,154 @@ function getDecalTexture(decal: DecalId): THREE.CanvasTexture | null {
   return tex;
 }
 
+function luminance(color: string): number {
+  const hex = color.replace('#', '');
+  const full = hex.length === 3 ? hex.split('').map((ch) => ch + ch).join('') : hex;
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+function shade(color: string, factor: number): string {
+  const hex = color.replace('#', '');
+  const full = hex.length === 3 ? hex.split('').map((ch) => ch + ch).join('') : hex;
+  const parts = [0, 2, 4].map((i) => Math.round(parseInt(full.slice(i, i + 2), 16) * factor));
+  return `rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`;
+}
+
+function helmetTexture(shellColor: string, trimColor: string, visorColorDark: string): THREE.CanvasTexture {
+  const w = 512;
+  const h = 256;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+
+  ctx.fillStyle = shellColor;
+  ctx.fillRect(0, 0, w, h);
+
+  // Pick a trim that actually contrasts with the shell. A white helmet with white
+  // trim reads as a blank ball, so fall back to a dark graphic in that case.
+  const shellLum = luminance(shellColor);
+  const contrastTrim = Math.abs(luminance(trimColor) - shellLum) > 0.25
+    ? trimColor
+    : shellLum > 0.55
+      ? '#1a2030'
+      : trimColor;
+
+  // u = 0.25 is the front of the sphere when using a default sphere UV layout.
+  const front = w * 0.25;
+
+  // A thin fore-aft stripe converges at the sphere's pole and reads as a white nub on
+  // top of the head, so the helmet uses broad side panels instead.
+  for (const dir of [-1, 1]) {
+    ctx.save();
+    ctx.translate(front + dir * w * 0.075, h * 0.5);
+    ctx.rotate(dir * 0.05);
+    ctx.fillStyle = contrastTrim;
+    ctx.fillRect(-w * 0.03, -h * 0.3, w * 0.06, h * 0.6);
+    ctx.restore();
+  }
+
+  // Rear spoiler lip is drawn as a dark band at the back of the shell.
+  ctx.fillStyle = shade(shellColor, 0.55);
+  ctx.fillRect(w * 0.46, h * 0.62, w * 0.08, h * 0.16);
+
+  // Chin bar: a narrow dark band wrapping the lower jaw only.
+  ctx.fillStyle = shade(shellColor, 0.25);
+  ctx.beginPath();
+  ctx.ellipse(front, h * 0.81, w * 0.086, h * 0.095, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor: a wide, shallow lens band at eye height. A tall oval reads as a mouth.
+  ctx.fillStyle = visorColorDark;
+  ctx.beginPath();
+  ctx.ellipse(front, h * 0.475, w * 0.135, h * 0.085, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bright specular streak across the visor.
+  const gloss = ctx.createLinearGradient(front - w * 0.1, h * 0.42, front + w * 0.09, h * 0.53);
+  gloss.addColorStop(0, 'rgba(160,200,250,0.55)');
+  gloss.addColorStop(0.55, 'rgba(70,120,190,0.14)');
+  gloss.addColorStop(1, 'rgba(10,18,32,0.0)');
+  ctx.fillStyle = gloss;
+  ctx.beginPath();
+  ctx.ellipse(front, h * 0.475, w * 0.128, h * 0.078, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Visor gasket outline.
+  ctx.strokeStyle = '#05070c';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.ellipse(front, h * 0.475, w * 0.138, h * 0.09, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Vent slots on the chin bar.
+  ctx.fillStyle = shade(shellColor, 0.5);
+  for (const dir of [-1, 1]) {
+    for (let i = 0; i < 2; i++) {
+      ctx.fillRect(front + dir * w * 0.026 + i * w * 0.015, h * 0.785, w * 0.009, h * 0.032);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function suitTexture(base: string, trim: string): THREE.CanvasTexture {
+  const w = 256;
+  const h = 256;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, w, h);
+
+  // Lathe UVs wrap clockwise from +X, so the driver's chest (facing +Z) lands at u = 0.25.
+  // Getting this wrong paints the harness on the driver's back.
+  const front = w * 0.25;
+
+  // Shoulder yoke band, kept clear of the chest detail so it does not read as a
+  // black stripe crossing the collarbone.
+  ctx.fillStyle = trim;
+  ctx.fillRect(0, h * 0.1, w, h * 0.03);
+
+  // Centre chest stripe.
+  ctx.fillStyle = trim;
+  ctx.fillRect(front - w * 0.012, h * 0.3, w * 0.024, h * 0.46);
+
+  // Harness straps running over the shoulders and down the chest.
+  ctx.fillStyle = '#12161f';
+  for (const dir of [-1, 1]) {
+    ctx.save();
+    ctx.translate(front + dir * w * 0.044, h * 0.52);
+    ctx.rotate(dir * 0.1);
+    ctx.fillRect(-w * 0.009, -h * 0.3, w * 0.018, h * 0.42);
+    ctx.restore();
+  }  // Buckle.
+  ctx.fillStyle = '#8b95a8';
+  ctx.fillRect(front - w * 0.02, h * 0.7, w * 0.04, h * 0.028);
+
+  // Side seams.
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = 3;
+  for (const u of [0.25, 0.5, 0.0]) {
+    ctx.beginPath();
+    ctx.moveTo(u * w, 0);
+    ctx.lineTo(u * w, h);
+    ctx.stroke();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 function numberTexture(number: string, bodyColor: string, accent: string): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 256;
@@ -206,6 +354,10 @@ export class KartModel {
   private tireMat: THREE.MeshStandardMaterial;
   private rimMat: THREE.MeshStandardMaterial;
   private helmetMat: THREE.MeshStandardMaterial;
+  private helmetSkin: THREE.MeshStandardMaterial | null = null;
+  private helmetTexture: THREE.CanvasTexture | null = null;
+  private suitSkin: THREE.MeshStandardMaterial | null = null;
+  private suitTexture: THREE.CanvasTexture | null = null;
   private glowMat: THREE.MeshBasicMaterial;
   private glowLight: THREE.PointLight | null = null;
   private glowPlane: THREE.Mesh;
@@ -233,6 +385,7 @@ export class KartModel {
   private suspension = 0;
   private currentSteer = 0;
   private currentSpeed = 0;
+  private driverBaseY = 0.86;
   private fade = 1;
   private fadeMaterials: THREE.Material[] = [];
 
@@ -377,9 +530,9 @@ export class KartModel {
     parent.add(cockpit);
     const seat = this.box(0.6, 0.18, 0.6, this.darkMat, 0, 0.82, -0.4);
     parent.add(seat);
-    const seatBack = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.62, 0.54, 0.15)), this.darkMat);
-    seatBack.position.set(0, 1.02, -0.7);
-    seatBack.rotation.x = 0.18;
+    const seatBack = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.6, 0.4, 0.14)), this.darkMat);
+    seatBack.position.set(0, 0.94, -0.72);
+    seatBack.rotation.x = 0.2;
     seatBack.castShadow = true;
     parent.add(seatBack);
 
@@ -409,72 +562,184 @@ export class KartModel {
     }
 
     // Steering column and wheel.
-    const column = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8)), this.metalMat);
-    column.rotation.x = -0.85;
-    column.position.set(0, 0.94, 0.28);
+    const column = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.035, 0.04, 0.38, 10)), this.metalMat);
+    column.rotation.x = 0.82;
+    column.position.set(0, 1, 0.17);
     parent.add(column);
     this.steeringWheel = new THREE.Group();
-    this.steeringWheel.position.set(0, 1.06, 0.14);
-    this.steeringWheel.rotation.x = -0.62;
-    const rim = new THREE.Mesh(this.geo(new THREE.TorusGeometry(0.17, 0.026, 6, 18)), this.darkMat);
+    this.steeringWheel.position.set(0, 1.13, 0.03);
+    this.steeringWheel.rotation.x = -0.6;
+    const rim = new THREE.Mesh(this.geo(new THREE.TorusGeometry(0.16, 0.024, 8, 22)), this.darkMat);
     this.steeringWheel.add(rim);
     for (let i = 0; i < 3; i++) {
-      const spoke = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.024, 0.32, 0.022)), this.metalMat);
+      const spoke = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.018, 0.3, 0.016)), this.darkMat);
       spoke.rotation.z = (i / 3) * Math.PI;
       this.steeringWheel.add(spoke);
     }
-    const hub = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.055, 0.055, 0.045, 10)), this.accentMat);
+    const hub = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.045, 0.045, 0.038, 12)), this.metalMat);
     hub.rotation.x = Math.PI / 2;
     this.steeringWheel.add(hub);
     parent.add(this.steeringWheel);
   }
-
   private buildDriver(parent: THREE.Group) {
+    // Team livery: the suit carries the kart's body colour so the driver reads
+    // clearly against the dark cockpit and seat, with dark panels for structure.
+    const accent = new THREE.Color(this.def.accentColor);
+    const body = new THREE.Color(this.customization.bodyColor);
+    const trimColor = accent.clone();
+    const lum = trimColor.r * 0.299 + trimColor.g * 0.587 + trimColor.b * 0.114;
+    if (lum > 0.72) trimColor.multiplyScalar(0.72 / lum);
+    const suitMat = this.track(new THREE.MeshStandardMaterial({ color: body, roughness: 0.66, metalness: 0.08 }));
+    const suitPanel = this.track(
+      new THREE.MeshStandardMaterial({ color: body.clone().multiplyScalar(0.34).lerp(new THREE.Color(0x171b24), 0.62), roughness: 0.82, metalness: 0.06 }),
+    );
+    const trimMat = this.track(new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.45, metalness: 0.2 }));
+    const bootMat = this.track(new THREE.MeshStandardMaterial({ color: 0x10131a, roughness: 0.55, metalness: 0.25 }));
+    const gloveMat = this.track(new THREE.MeshStandardMaterial({ color: 0x171b24, roughness: 0.62, metalness: 0.1 }));
+    const neckMat = this.track(new THREE.MeshStandardMaterial({ color: 0xa87b58, roughness: 0.74, metalness: 0.02 }));
+
     this.driverTorso = new THREE.Group();
-    this.driverTorso.position.set(0, 0.9, -0.32);
-    const suit = this.track(new THREE.MeshStandardMaterial({ color: this.def.accentColor, roughness: 0.82, metalness: 0.05 }));
-    const torso = new THREE.Mesh(this.geo(new THREE.CapsuleGeometry(0.21, 0.36, 4, 10)), suit);
-    torso.position.y = 0.08;
-    torso.rotation.x = 0.14;
+    this.driverTorso.position.set(0, 0.84, -0.4);
+    this.driverBaseY = this.driverTorso.position.y;
+    // A driver is roughly 1.75 m against a kart ~1.2 m tall, so scale up a touch
+    // to sit correctly in the seat.
+    this.driverTorso.scale.setScalar(1.14);
+
+    // Hips.
+    const pelvis = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.15, 18, 14)), suitMat);
+    pelvis.position.set(0, 0.03, 0);
+    pelvis.scale.set(1.05, 0.82, 0.95);
+    pelvis.castShadow = true;
+    this.driverTorso.add(pelvis);
+
+    // Torso: a lathed profile — narrow waist opening into a broad chest, which is
+    // what separates a human silhouette from a stack of capsules.
+    const profile: THREE.Vector2[] = [
+      new THREE.Vector2(0.001, 0),
+      new THREE.Vector2(0.118, 0.015),
+      new THREE.Vector2(0.132, 0.07),
+      new THREE.Vector2(0.148, 0.15),
+      new THREE.Vector2(0.172, 0.24),
+      new THREE.Vector2(0.188, 0.31),
+      new THREE.Vector2(0.182, 0.365),
+      new THREE.Vector2(0.14, 0.405),
+      new THREE.Vector2(0.07, 0.425),
+      new THREE.Vector2(0.001, 0.43),
+    ];
+    const torsoGeo = this.geo(new THREE.LatheGeometry(profile, 22));
+    torsoGeo.scale(1, 1, 0.8);
+    // Chest detail is painted onto the suit rather than modelled, so nothing
+    // juts out of the torso silhouette.
+    this.suitTexture = suitTexture(`#${body.getHexString()}`, `#${trimColor.getHexString()}`);
+    this.suitSkin = this.track(
+      new THREE.MeshStandardMaterial({ map: this.suitTexture, roughness: 0.66, metalness: 0.08 }),
+    );
+    const torso = new THREE.Mesh(torsoGeo, this.suitSkin);
+    torso.position.set(0, 0.05, 0);
     torso.castShadow = true;
     this.driverTorso.add(torso);
-    const belt = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.46, 0.09, 0.36)), this.darkMat);
-    belt.position.set(0, 0.1, 0.06);
-    this.driverTorso.add(belt);
-    this.driverHead = new THREE.Group();
-    this.driverHead.position.set(0, 0.44, 0.03);
-    const head = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.2, 16, 14)), this.helmetMat);
-    head.scale.set(0.92, 1.02, 1);
-    head.castShadow = true;
-    this.driverHead.add(head);
-    const visor = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.195, 14, 10, Math.PI * 0.9, Math.PI * 0.85, Math.PI * 0.28, Math.PI * 0.3)), this.visorMat);
-    visor.rotation.y = Math.PI / 2;
-    visor.position.set(0, 0.015, 0.01);
-    this.driverHead.add(visor);
-    const crest = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.035, 0.18, 0.3)), this.accentMat);
-    crest.position.set(0, 0.2, -0.02);
-    crest.rotation.x = -0.2;
-    this.driverHead.add(crest);
-    this.driverTorso.add(this.driverHead);
-    parent.add(this.driverTorso);
 
-    const gloveMat = this.track(new THREE.MeshStandardMaterial({ color: 0x1a1e28, roughness: 0.7 }));
-    const armGeo = this.geo(new THREE.CapsuleGeometry(0.055, 0.36, 3, 8));
+    // Shoulder caps blended into the chest so there is no visible ball joint.
     for (const side of [-1, 1]) {
+      const cap = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.066, 18, 14)), this.suitSkin);
+      cap.position.set(side * 0.142, 0.334, 0.004);
+      cap.scale.set(1.1, 0.92, 0.92);
+      cap.castShadow = true;
+      this.driverTorso.add(cap);
+    }
+
+    // Neck and helmet. A real head is about one-seventh of body height; the earlier
+    // 0.155 radius read as a bobblehead at this scale.
+    const neck = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.045, 0.056, 0.09, 14)), neckMat);
+    neck.position.set(0, 0.435, 0.008);
+    this.driverTorso.add(neck);
+
+    this.driverHead = new THREE.Group();
+    this.driverHead.position.set(0, 0.535, 0.012);
+    this.driverTorso.add(this.driverHead);
+
+    // The shell is a hero-quality sphere; visor, chin bar, stripe and vents are
+    // painted into the texture so nothing sticks out of the silhouette.
+    this.helmetTexture = helmetTexture(
+      `#${this.customization.helmetColor.replace('#', '')}`,
+      `#${trimColor.getHexString()}`,
+      '#0a1220',
+    );
+    this.helmetSkin = this.track(
+      new THREE.MeshStandardMaterial({ map: this.helmetTexture, metalness: 0.42, roughness: 0.24 }),
+    );
+    const shell = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.108, 32, 24)), this.helmetSkin);
+    shell.scale.set(1, 1.12, 1.06);
+    shell.castShadow = true;
+    this.driverHead.add(shell);
+
+    // Shallow rear spoiler lip.
+    const spoiler = new THREE.Mesh(this.geo(new THREE.BoxGeometry(0.092, 0.011, 0.036)), this.helmetSkin);
+    spoiler.position.set(0, 0.058, -0.106);
+    spoiler.rotation.x = -0.44;
+    spoiler.castShadow = true;
+    this.driverHead.add(spoiler);
+
+    // HANS-style collar sits on the torso, not the helmet.
+    const collar = new THREE.Mesh(this.geo(new THREE.TorusGeometry(0.056, 0.016, 8, 18)), this.darkMat);
+    collar.position.set(0, -0.045, -0.058);
+    collar.rotation.x = Math.PI / 2 - 0.28;
+    this.driverTorso.add(collar);
+
+    // Arms: shoulder -> elbow -> forearm -> gloved hand on the rim.
+    for (const side of [-1, 1]) {
+      const shoulder = new THREE.Vector3(side * 0.155, 0.335, 0.01);
+      const elbow = new THREE.Vector3(side * 0.212, 0.165, 0.17);
+      const grip = new THREE.Vector3(side * 0.132, 0.235, 0.355);
       const pivot = new THREE.Group();
-      pivot.position.set(side * 0.19, 0.24, 0.02);
-      const arm = new THREE.Mesh(armGeo, suit);
-      arm.position.set(side * 0.09, -0.13, 0.16);
-      arm.rotation.x = 0.95;
-      arm.rotation.z = side * 0.28;
-      arm.castShadow = true;
-      pivot.add(arm);
-      const glove = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.07, 8, 6)), gloveMat);
-      glove.position.set(side * 0.13, -0.27, 0.32);
+      pivot.position.copy(shoulder);
+      pivot.add(this.limb(new THREE.Vector3(0, 0, 0), elbow.clone().sub(shoulder), 0.048, suitMat));
+      const joint = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.047, 14, 10)), suitPanel);
+      joint.position.copy(elbow.clone().sub(shoulder));
+      pivot.add(joint);
+      pivot.add(this.limb(elbow.clone().sub(shoulder), grip.clone().sub(shoulder), 0.04, suitMat, 0.92));
+      const cuff = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(0.043, 0.04, 0.034, 14)), suitPanel);
+      const cuffDir = grip.clone().sub(elbow).normalize();
+      cuff.position.copy(grip.clone().sub(shoulder)).addScaledVector(cuffDir, -0.022);
+      cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cuffDir);
+      pivot.add(cuff);
+      const glove = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.045, 14, 10)), gloveMat);
+      glove.position.copy(grip.clone().sub(shoulder));
+      glove.scale.set(1, 0.88, 1.15);
+      glove.castShadow = true;
       pivot.add(glove);
       this.driverTorso.add(pivot);
       this.armPivots.push(pivot);
     }
+
+    // Legs run forward into the pedal box.
+    for (const side of [-1, 1]) {
+      const hip = new THREE.Vector3(side * 0.082, 0, 0.02);
+      const knee = new THREE.Vector3(side * 0.105, -0.08, 0.26);
+      const ankle = new THREE.Vector3(side * 0.115, -0.41, 0.42);
+      this.driverTorso.add(this.limb(hip, knee, 0.071, suitMat));
+      const kneeCap = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.059, 12, 10)), suitPanel);
+      kneeCap.position.copy(knee);
+      this.driverTorso.add(kneeCap);
+      this.driverTorso.add(this.limb(knee, ankle, 0.056, suitMat, 1.12));
+      const boot = new THREE.Mesh(this.geo(taperedBox(0.09, 0.074, 0.19, 0.12, 0.88)), bootMat);
+      boot.position.set(side * 0.117, -0.438, 0.5);
+      boot.rotation.x = -0.08;
+      boot.castShadow = true;
+      this.driverTorso.add(boot);
+    }
+
+    parent.add(this.driverTorso);
+  }
+
+  private limb(from: THREE.Vector3, to: THREE.Vector3, radius: number, mat: THREE.Material, taper = 1) {
+    const dir = to.clone().sub(from);
+    const len = Math.max(0.001, dir.length());
+    const mesh = new THREE.Mesh(this.geo(new THREE.CylinderGeometry(radius * taper, radius, len, 12)), mat);
+    mesh.position.copy(from).addScaledVector(dir, 0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    mesh.castShadow = true;
+    return mesh;
   }
 
   private buildWheels(parent: THREE.Group, shadows: boolean) {
@@ -761,11 +1026,18 @@ export class KartModel {
       wheel.pivot.position.y = wheel.baseY + this.suspension * (wheel.front ? -0.6 : 0.8);
     }
     this.steeringWheel.rotation.z = -this.currentSteer * 0.85;
+    const steerAmt = Math.min(1, Math.abs(this.currentSteer));
     for (const [i, pivot] of this.armPivots.entries()) {
-      pivot.rotation.y = this.currentSteer * (i === 0 ? 0.3 : 0.24);
+      const side = i === 0 ? -1 : 1;
+      pivot.rotation.y = this.currentSteer * 0.26;
+      pivot.rotation.x = steerAmt * side * this.currentSteer * 0.06;
     }
-    this.driverHead.rotation.y = this.currentSteer * 0.22;
-    this.driverTorso.position.y = 0.78 + Math.sin(state.time * 9) * 0.006;
+    this.driverHead.rotation.y = this.currentSteer * 0.26;
+    this.driverHead.rotation.z = -this.currentSteer * 0.07;
+    // Braking throws the driver forward, acceleration rocks them back.
+    const gForce = clamp(state.braking ? 0.035 : -Math.min(1, state.throttle) * 0.012, -0.02, 0.04);
+    this.driverTorso.rotation.x = this.currentSteer * 0.06 + gForce;
+    this.driverTorso.position.y = this.driverBaseY + Math.sin(state.time * 9) * 0.005 + this.suspension * 0.4;
 
     const lean = -this.currentSteer * 0.09 * Math.min(1, Math.abs(state.speed) / 25);
     this.body.rotation.z += (lean - this.body.rotation.z) * Math.min(1, dt * 8);
