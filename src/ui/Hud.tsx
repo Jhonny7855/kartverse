@@ -250,16 +250,20 @@ export function TouchControls({
   visible: boolean;
 }) {
   const state = useRef({ left: false, right: false, throttle: false, brake: false, drift: false, boost: false });
+  // Held in a ref so a parent re-render (every HUD tick) cannot re-run the reset
+  // effect and wipe a thumb press that is still held down.
+  const onInputRef = useRef(onInput);
+  onInputRef.current = onInput;
   useEffect(() => {
     if (!visible) return;
     return () => {
-      onInput({ steer: 0, throttle: 0, brake: 0, drift: false, boost: false });
+      onInputRef.current({ steer: 0, throttle: 0, brake: 0, drift: false, boost: false });
     };
-  }, [visible, onInput]);
+  }, [visible]);
 
   const push = () => {
     const s = state.current;
-    onInput({
+    onInputRef.current({
       steer: (s.left ? 1 : 0) - (s.right ? 1 : 0),
       throttle: s.throttle ? 1 : 0,
       brake: s.brake ? 1 : 0,
@@ -271,9 +275,16 @@ export function TouchControls({
   const bind = (key: keyof typeof state.current) => ({
     onPointerDown: (e: React.PointerEvent) => {
       e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      // Set the input before capturing: capture throws when the pointer id is not
+      // active (synthetic events, some embedded browsers), and that must never
+      // stop the pad from registering a press.
       state.current[key] = true;
       (e.currentTarget as HTMLElement).classList.add('is-active');
+      try {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        /* pointer capture unavailable */
+      }
       push();
     },
     onPointerUp: (e: React.PointerEvent) => {

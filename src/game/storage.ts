@@ -9,12 +9,13 @@ import type {
 } from '../data/types';
 import { KARTS, getKart } from '../data/karts';
 import { TRACKS } from '../data/tracks';
-import { clampColor, defaultCustomization } from './utils';
+import { clampColor, defaultCustomization, detectPlayMode } from './utils';
 
 const STORAGE_KEY = 'kartverse.save.v2';
 const SAVE_VERSION = 2;
 
 export const DEFAULT_SETTINGS: Settings = {
+  playMode: detectPlayMode(),
   quality: 'high',
   resolutionScale: 1,
   shadows: true,
@@ -190,6 +191,9 @@ export function sanitizeSave(raw: unknown): SaveData {
   const rawBindings = isObject(rawSettings.bindings) ? rawSettings.bindings : {};
   const settings: Settings = {
     ...base.settings,
+    playMode: rawSettings.playMode === 'mobile' || rawSettings.playMode === 'desktop'
+      ? (rawSettings.playMode as Settings['playMode'])
+      : base.settings.playMode,
     quality: (['low', 'medium', 'high'] as const).includes(rawSettings.quality as never)
       ? (rawSettings.quality as Settings['quality'])
       : base.settings.quality,

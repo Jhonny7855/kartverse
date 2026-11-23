@@ -166,7 +166,11 @@ export interface HudSnapshot {
 
 export type QualityLevel = 'low' | 'medium' | 'high';
 
+/** How the player is driving: keyboard on a computer, or on-screen pads on a phone/tablet. */
+export type PlayMode = 'desktop' | 'mobile';
+
 export interface Settings {
+  playMode: PlayMode;
   quality: QualityLevel;
   resolutionScale: number;
   shadows: boolean;

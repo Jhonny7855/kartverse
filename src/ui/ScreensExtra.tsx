@@ -605,6 +605,22 @@ export function SettingsScreen({
             {section === 'controls' && (
               <>
                 <div className="settings-group">
+                  <div className="settings-group-title">Play Mode</div>
+                  <Segmented
+                    label="How you are playing"
+                    value={settings.playMode}
+                    onChange={(v) => onChange({ playMode: v })}
+                    options={[
+                      { value: 'desktop', label: 'Desktop' },
+                      { value: 'mobile', label: 'Mobile' },
+                    ]}
+                  />
+                  <p className="control-hint">
+                    Desktop uses the keyboard and hides the on-screen pads. Mobile shows touch
+                    steering, throttle, brake, drift and boost pads sized for thumbs.
+                  </p>
+                </div>
+                <div className="settings-group">
                   <div className="settings-group-title">Keyboard Bindings</div>
                   <p className="control-hint">Click a binding then press a key. Escape cancels.</p>
                   <div className="settings-rows">
@@ -633,6 +649,17 @@ export function SettingsScreen({
                     <div className="key-row"><span className="keycap">C</span><span className="key-desc">Camera</span></div>
                     <div className="key-row"><span className="keycap">R</span><span className="key-desc">Recover</span></div>
                     <div className="key-row"><span className="keycap">ESC</span><span className="key-desc">Pause</span></div>
+                  </div>
+                </div>
+                <div className="settings-group">
+                  <div className="settings-group-title">Touch Layout</div>
+                  <div className="controls-grid">
+                    <div className="key-row"><span className="keycap">◀ ▶</span><span className="key-desc">Steer</span></div>
+                    <div className="key-row"><span className="keycap">▶</span><span className="key-desc">Throttle</span></div>
+                    <div className="key-row"><span className="keycap">BRAKE</span><span className="key-desc">Brake & reverse</span></div>
+                    <div className="key-row"><span className="keycap">DRIFT</span><span className="key-desc">Drift / handbrake</span></div>
+                    <div className="key-row"><span className="keycap">BOOST</span><span className="key-desc">Boost</span></div>
+                    <div className="key-row"><span className="keycap">ITEM</span><span className="key-desc">Use item</span></div>
                   </div>
                 </div>
               </>

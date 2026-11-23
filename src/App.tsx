@@ -386,7 +386,13 @@ function App() {
     push('Save imported', 'success');
   };
 
-  const touchVisible = screen === 'race' && !outcome && !showControls;
+  const touchVisible = screen === 'race' && !outcome && !showControls && save.settings.playMode === 'mobile';
+
+  // Play mode drives both the touch pads and the keyboard hints, so a phone never
+  // shows a "press W" hint and a desktop never gets pads covering the HUD.
+  useEffect(() => {
+    document.body.classList.toggle('play-mobile', save.settings.playMode === 'mobile');
+  }, [save.settings.playMode]);
 
   return (
     <div
@@ -550,6 +556,8 @@ function App() {
 
           {showControls && !outcome && (
             <ControlsGuide
+              playMode={save.settings.playMode}
+              onPlayModeChange={(mode) => updateSettings({ playMode: mode })}
               onClose={() => {
                 setShowControls(false);
                 markControlsSeen();

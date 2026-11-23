@@ -101,3 +101,17 @@ export const RACER_NAMES = [
 export function clampColor(hex: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#ff6b1a';
 }
+
+/**
+ * Best guess at the player's device, used once to seed the Play Mode setting.
+ * A coarse primary pointer or a touch-capable screen means phone/tablet.
+ */
+export function detectPlayMode(): 'desktop' | 'mobile' {
+  try {
+    const coarse = window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+    const touch = 'ontouchstart' in window || (navigator.maxTouchPoints ?? 0) > 0;
+    return coarse || touch ? 'mobile' : 'desktop';
+  } catch {
+    return 'desktop';
+  }
+}

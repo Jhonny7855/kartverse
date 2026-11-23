@@ -226,7 +226,15 @@ export function PauseMenu({
   );
 }
 
-export function ControlsGuide({ onClose }: { onClose: () => void }) {
+export function ControlsGuide({
+  onClose,
+  playMode,
+  onPlayModeChange,
+}: {
+  onClose: () => void;
+  playMode: 'desktop' | 'mobile';
+  onPlayModeChange: (mode: 'desktop' | 'mobile') => void;
+}) {
   const rows: { key: string; desc: string }[] = [
     { key: 'W / ↑', desc: 'Accelerate' },
     { key: 'S / ↓', desc: 'Brake & reverse' },
@@ -239,15 +247,44 @@ export function ControlsGuide({ onClose }: { onClose: () => void }) {
     { key: 'R', desc: 'Recover kart' },
     { key: 'ESC', desc: 'Pause' },
   ];
+  const touchRows: { key: string; desc: string }[] = [
+    { key: '◀ ▶', desc: 'Steer left / right' },
+    { key: '▶', desc: 'Accelerate' },
+    { key: 'BRAKE', desc: 'Brake & reverse' },
+    { key: 'DRIFT', desc: 'Drift / handbrake' },
+    { key: 'BOOST', desc: 'Boost' },
+    { key: 'ITEM', desc: 'Use item' },
+  ];
+  const mobile = playMode === 'mobile';
   return (
     <div className="overlay">
       <div className="modal" style={{ width: 'min(560px, 100%)' }}>
         <div>
           <div className="modal-sub">Before you launch</div>
-          <h2 className="modal-title" style={{ marginTop: 6 }}>Race Controls</h2>
+          <h2 className="modal-title" style={{ marginTop: 6 }}>How are you playing?</h2>
+        </div>
+        <div className="playmode-choice">
+          <button
+            type="button"
+            className={`playmode-card ${!mobile ? 'is-active' : ''}`}
+            onClick={() => onPlayModeChange('desktop')}
+            aria-pressed={!mobile}
+          >
+            <span className="playmode-name">Desktop</span>
+            <span className="playmode-desc">Keyboard and mouse. On-screen pads hidden.</span>
+          </button>
+          <button
+            type="button"
+            className={`playmode-card ${mobile ? 'is-active' : ''}`}
+            onClick={() => onPlayModeChange('mobile')}
+            aria-pressed={mobile}
+          >
+            <span className="playmode-name">Mobile</span>
+            <span className="playmode-desc">Touch pads for steering, throttle and boost.</span>
+          </button>
         </div>
         <div className="controls-grid">
-          {rows.map((r) => (
+          {(mobile ? touchRows : rows).map((r) => (
             <div className="key-row" key={r.key}>
               <span className="keycap">{r.key}</span>
               <span className="key-desc">{r.desc}</span>
