@@ -96,7 +96,10 @@ export class InputManager {
     const brake = this.isDown(b.brake) || this.isDown('ArrowDown') ? 1 : 0;
     const left = this.isDown(b.left) || this.isDown('ArrowLeft') ? 1 : 0;
     const right = this.isDown(b.right) || this.isDown('ArrowRight') ? 1 : 0;
-    let steer = right - left;
+    // Physics convention: heading grows counter-clockwise (nose swings from +Z toward
+    // +X), which is a left turn from the driver's seat. Steering right must therefore
+    // be negative, or the kart turns the wrong way on screen.
+    let steer = left - right;
     steer += this.touch.steer;
     steer = clamp(steer, -1, 1);
     // Digital keyboard input gets smoothed here so physics stays smooth too.
@@ -119,7 +122,7 @@ export class InputManager {
     const b = this.bindings;
     const left = this.isDown(b.left) || this.isDown('ArrowLeft') ? 1 : 0;
     const right = this.isDown(b.right) || this.isDown('ArrowRight') ? 1 : 0;
-    return clamp(right - left + this.touch.steer, -1, 1);
+    return clamp(left - right + this.touch.steer, -1, 1);
   }
 
   dispose() {

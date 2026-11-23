@@ -260,7 +260,7 @@ export function TouchControls({
   const push = () => {
     const s = state.current;
     onInput({
-      steer: (s.right ? 1 : 0) - (s.left ? 1 : 0),
+      steer: (s.left ? 1 : 0) - (s.right ? 1 : 0),
       throttle: s.throttle ? 1 : 0,
       brake: s.brake ? 1 : 0,
       drift: s.drift,

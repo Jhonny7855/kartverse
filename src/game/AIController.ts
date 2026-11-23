@@ -92,8 +92,11 @@ export class AIController {
       const forward = new THREE.Vector3(Math.sin(kart.heading), 0, Math.cos(kart.heading));
       const dot = (dx * forward.x + dz * forward.z) / dist;
       if (dot < 0.35) continue;
+      // sideSign is positive when the rival sits to the driver's LEFT (world +X at
+      // heading 0), so a negative target offset — i.e. steering left — comes from
+      // adding it. Subtracting would aim the kart straight at the rival.
       const sideSign = Math.sign(dx * forward.z - dz * forward.x) || 1;
-      avoid -= sideSign * (1 - dist / 11) * (1.4 + cfg.aggression * 2.1);
+      avoid += sideSign * (1 - dist / 11) * (1.4 + cfg.aggression * 2.1);
     }
     this.targetOffset = clamp(this.targetOffset + avoid, -surface.width * 0.36, surface.width * 0.36);
     this.lineOffset = damp(this.lineOffset, this.targetOffset, 1.6 + cfg.cornerSkill * 2, dt);
@@ -178,7 +181,9 @@ export class AIController {
 
     // Keep karts on track when they wander wide.
     if (Math.abs(surface.lateral) > surface.width * 0.42) {
-      input.steer = clamp(input.steer - Math.sign(surface.lateral) * 0.4, -1, 1);
+      // Positive lateral means the kart is right of the centreline, so it has to steer
+      // left (positive steer) to get back to the middle of the road.
+      input.steer = clamp(input.steer + Math.sign(surface.lateral) * 0.4, -1, 1);
       input.throttle = Math.min(input.throttle, 0.8);
     }
     void progress;
