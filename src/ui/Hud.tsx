@@ -104,6 +104,11 @@ export function Hud({ hud, onPause }: { hud: HudSnapshot; onPause: () => void })
             )}
           </span>
         </div>
+        <div className="hud-card hud-coins">
+          <Icon name="coin" size={13} />
+          <span className="hud-coins-value" key={hud.coins}>{hud.coins}</span>
+          <span className="hud-coins-label">COINS</span>
+        </div>
       </div>
 
       <div className="hud-corner hud-tc">

@@ -1590,6 +1590,35 @@ h1, h2, h3, h4, p {
   font-size: 11px;
 }
 
+.hud-coins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  color: var(--yellow);
+  border-color: rgba(255, 209, 102, 0.28);
+  background: rgba(24, 18, 6, 0.68);
+}
+.hud-coins-value {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--yellow);
+  animation: coinPulse 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hud-coins-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 209, 102, 0.6);
+}
+@keyframes coinPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
 .hud-timing {
   display: grid;
   grid-template-columns: auto auto;

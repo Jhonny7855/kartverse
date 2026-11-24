@@ -43,6 +43,7 @@ export function applyRaceOutcome(save: SaveData, outcome: RaceOutcome, customiza
   profile.topSpeed = Math.max(profile.topSpeed, outcome.topSpeed);
   profile.driftScore += outcome.driftScore;
   profile.boostUses += outcome.boostUses;
+  profile.coins += outcome.coins;
   if (outcome.cleanRace && outcome.position === 1) profile.cleanRaces += 1;
   if (!profile.tracksPlayed.includes(outcome.trackId)) profile.tracksPlayed.push(outcome.trackId);
 
@@ -81,6 +82,10 @@ export function applyRaceOutcome(save: SaveData, outcome: RaceOutcome, customiza
   }
   xp += Math.min(220, Math.round(outcome.driftScore / 120));
   credits += Math.min(140, Math.round(outcome.driftScore / 220));
+  if (outcome.coins > 0) {
+    credits += outcome.coins * 4;
+    xp += Math.min(120, outcome.coins * 2);
+  }
 
   const newBestLap = outcome.bestLap !== null && (profile.bestLap === null || outcome.bestLap < profile.bestLap);
   if (newBestLap) {
@@ -164,6 +169,8 @@ export function applyRaceOutcome(save: SaveData, outcome: RaceOutcome, customiza
   rewardList('collect-2', profile.customizationMaster);
   rewardList('boost-1', profile.boostUses >= 50);
   rewardList('tt-1', outcome.mode === 'timetrial' && newBestLap);
+  rewardList('coin-1', profile.coins >= 50);
+  rewardList('coin-2', profile.coins >= 500);
 
   profile.xp += xp;
   profile.credits += credits;

@@ -120,6 +120,7 @@ export interface RaceOutcome {
   bestLap: number | null;
   topSpeed: number;
   driftScore: number;
+  coins: number;
   cleanRace: boolean;
   boostUses: number;
   eliminated: boolean;
@@ -154,6 +155,8 @@ export interface HudSnapshot {
   wrongWay: boolean;
   item: string | null;
   shieldTime: number;
+  coins: number;
+  coinTotal: number;
   cameraMode: string;
   eliminationIn: number | null;
   playerProgress: number;
@@ -242,6 +245,7 @@ export interface Profile {
   bestLap: number | null;
   driftScore: number;
   topSpeed: number;
+  coins: number;
   unlockedKarts: KartClassId[];
   achievements: Record<string, number>;
   history: RaceHistoryEntry[];

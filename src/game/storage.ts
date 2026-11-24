@@ -65,6 +65,7 @@ const defaultProfile = (): Profile => ({
   bestLap: null,
   driftScore: 0,
   topSpeed: 0,
+  coins: 0,
   unlockedKarts: ['speedster', 'balanced', 'drifter', 'heavy'],
   achievements: {},
   history: [],
@@ -152,6 +153,7 @@ export function sanitizeSave(raw: unknown): SaveData {
     bestLap: typeof rawProfile.bestLap === 'number' && rawProfile.bestLap > 0 ? rawProfile.bestLap : null,
     driftScore: sanitizeNumber(rawProfile.driftScore, 0, 0, 1e9),
     topSpeed: sanitizeNumber(rawProfile.topSpeed, 0, 0, 1000),
+    coins: sanitizeNumber(rawProfile.coins, 0, 0, 1e9),
     unlockedKarts: Array.isArray(rawProfile.unlockedKarts)
       ? (Array.from(new Set([...base.profile.unlockedKarts, ...rawProfile.unlockedKarts.filter((k): k is KartClassId => typeof k === 'string' && KARTS.some((kd) => kd.id === k))])) as KartClassId[])
       : base.profile.unlockedKarts,

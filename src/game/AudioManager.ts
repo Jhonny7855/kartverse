@@ -17,6 +17,7 @@ type SfxName =
   | 'finish'
   | 'victory'
   | 'pickup'
+  | 'coin'
   | 'shift'
   | 'error';
 
@@ -293,6 +294,10 @@ export class AudioManager {
         break;
       case 'pickup':
         tone(740, 0.1, 'sine', 0.11, 1180);
+        break;
+      case 'coin':
+        tone(1180, 0.09, 'triangle', 0.1, 1560);
+        setTimeout(() => tone(1760, 0.12, 'sine', 0.07), 55);
         break;
       case 'shift':
         noiseHit(0.12, 420, 0.16, 1.6);

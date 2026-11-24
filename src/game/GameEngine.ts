@@ -61,6 +61,15 @@ export class GameEngine {
   private scenery: ReturnType<typeof buildTrack>['scenery'] | null = null;
   private race!: RaceManager;
   private kartModels = new Map<string, KartModel>();
+  private coinMesh: THREE.InstancedMesh | null = null;
+  private coinRing: THREE.InstancedMesh | null = null;
+  private coinBaseYaw: number[] = [];
+  private coinDummy = new THREE.Object3D();
+  private coinYawQ = new THREE.Quaternion();
+  private coinTiltQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
+  private coinFlatQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+  private coinEuler = new THREE.Euler();
+  private coinFlash = 0;
   private ghostModel: KartModel | null = null;
   private ghostFrames: EngineOptions['ghost'] extends infer T ? T : never = null;
   private effects: EffectsManager;
@@ -321,6 +330,8 @@ export class GameEngine {
     await wait();
     if (this.disposed) return;
 
+    this.buildCoins();
+
     // Player kart.
     const playerModel = new KartModel(playerDef, config.customization, { shadows: this.settings.shadows });
     this.kartModels.set('YOU', playerModel);
@@ -415,6 +426,7 @@ export class GameEngine {
     this.drainRaceEvents();
     this.recordGhost(dt);
     this.updateVisuals(dt);
+    this.updateCoins(dt);
     this.effects.update(dt);
     if (this.scenery) this.scenery.animated(dt);
 
@@ -460,6 +472,152 @@ export class GameEngine {
 
     this.renderer.render(this.scene, this.camera);
   };
+
+  private buildCoins() {
+    const coins = this.race.coins;
+    if (coins.length === 0) return;
+    const face = this.coinFaceTexture();
+    const edge = new THREE.MeshPhongMaterial({
+      color: 0xc98a12,
+      shininess: 70,
+      specular: 0xfff0b8,
+      emissive: 0x4a2c00,
+      emissiveIntensity: 1,
+    });
+    const faceMat = new THREE.MeshPhongMaterial({
+      map: face,
+      shininess: 90,
+      specular: 0xfff6d0,
+      emissive: 0x3a2400,
+      emissiveIntensity: 1,
+    });
+    const discGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.06, 22, 1, false);
+    this.coinMesh = new THREE.InstancedMesh(discGeo, [edge, faceMat, faceMat], coins.length);
+    this.coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.coinMesh.frustumCulled = false;
+
+    const glowGeo = new THREE.PlaneGeometry(1.5, 1.5);
+    const glowMat = new THREE.MeshBasicMaterial({
+      map: this.coinGlowTexture(),
+      color: 0xffc93c,
+      transparent: true,
+      opacity: 0.62,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    this.coinRing = new THREE.InstancedMesh(glowGeo, glowMat, coins.length);
+    this.coinRing.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.coinRing.frustumCulled = false;
+
+    this.coinBaseYaw = coins.map((coin) => {
+      const s = this.spline.sampleAtDistance(coin.progress);
+      return Math.atan2(s.tangent.x, s.tangent.z);
+    });
+    this.scene.add(this.coinRing);
+    this.scene.add(this.coinMesh);
+    this.updateCoins(0);
+  }
+
+  private coinFaceTexture(): THREE.CanvasTexture {
+    const size = 256;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d')!;
+    const cx = size / 2;
+    const cy = size / 2;
+    const grad = ctx.createRadialGradient(cx - 26, cy - 30, 8, cx, cy, size / 2);
+    grad.addColorStop(0, '#fffbe0');
+    grad.addColorStop(0.35, '#ffe066');
+    grad.addColorStop(0.72, '#ffc21f');
+    grad.addColorStop(1, '#c98a12');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    ctx.strokeStyle = 'rgba(120, 74, 4, 0.85)';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 104, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 250, 214, 0.75)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 88, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(128, 82, 6, 0.9)';
+    ctx.font = 'bold 108px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('K', cx, cy + 4);
+
+    ctx.fillStyle = 'rgba(255, 250, 214, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(cx - 34, cy - 42, 42, 24, -0.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  private coinGlowTexture(): THREE.CanvasTexture {
+    const size = 128;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2);
+    g.addColorStop(0, 'rgba(255, 220, 120, 0.85)');
+    g.addColorStop(0.42, 'rgba(255, 190, 60, 0.32)');
+    g.addColorStop(1, 'rgba(255, 170, 30, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  private updateCoins(dt: number) {
+    if (!this.coinMesh || !this.coinRing) return;
+    const coins = this.race.coins;
+    const t = this.race.elapsed;
+    this.coinFlash = Math.max(0, this.coinFlash - dt);
+    for (let i = 0; i < coins.length; i++) {
+      const coin = coins[i];
+      const base = this.coinBaseYaw[i] ?? 0;
+      if (coin.collected) {
+        this.coinDummy.position.copy(coin.position);
+        this.coinDummy.quaternion.identity();
+        this.coinDummy.scale.setScalar(0);
+      } else {
+        const bob = Math.sin(t * 2.1 + coin.phase) * 0.11;
+        this.coinDummy.position.set(coin.position.x, coin.position.y + bob, coin.position.z);
+        this.coinEuler.set(0, base + t * 2.6 + coin.phase, 0);
+        this.coinYawQ.setFromEuler(this.coinEuler);
+        this.coinDummy.quaternion.copy(this.coinYawQ).multiply(this.coinTiltQ);
+        const pulse = 1 + Math.sin(t * 3.4 + coin.phase) * 0.05;
+        this.coinDummy.scale.setScalar(pulse);
+      }
+      this.coinDummy.updateMatrix();
+      this.coinMesh.setMatrixAt(i, this.coinDummy.matrix);
+
+      this.coinDummy.position.set(coin.position.x, coin.position.y - 1.02, coin.position.z);
+      this.coinDummy.quaternion.copy(this.coinFlatQ);
+      this.coinDummy.scale.setScalar(coin.collected ? 0 : 1);
+      this.coinDummy.updateMatrix();
+      this.coinRing.setMatrixAt(i, this.coinDummy.matrix);
+    }
+    this.coinMesh.instanceMatrix.needsUpdate = true;
+    this.coinRing.instanceMatrix.needsUpdate = true;
+    const mats = this.coinMesh.material as THREE.Material[];
+    for (const m of mats) {
+      const phong = m as THREE.MeshPhongMaterial;
+      if (phong.emissive) phong.emissiveIntensity = 1 + this.coinFlash * 3;
+    }
+  }
 
   private recordGhost(dt: number) {
     if (this.opts.config.mode !== 'timetrial') return;
@@ -531,6 +689,11 @@ export class GameEngine {
       case 'item':
         this.opts.callbacks.onToast(`${event.item.toUpperCase()} acquired — press F`, 'success');
         break;
+      case 'coin':
+        this.audio.play('coin');
+        this.coinFlash = 0.25;
+        this.effects.emitSparks(this.race.player.position.clone().setY(this.race.player.position.y + 0.9), 0, 5, 0xffd166);
+        break;
       case 'eliminate':
         this.audio.play('error', { volume: 0.7 });
         if (event.isPlayer) {
@@ -565,6 +728,7 @@ export class GameEngine {
       bestLap: player.bestLap,
       topSpeed: player.topSpeed,
       driftScore: Math.round(player.driftScore),
+      coins: player.coins,
       cleanRace: player.offRoadTime < 2.4 && player.hitCount < 3,
       boostUses: player.boostUses,
       eliminated: this.eliminatedPlayer,
@@ -758,6 +922,8 @@ export class GameEngine {
       wrongWay: this.race.isPlayerWrongWay,
       item: player.item,
       shieldTime: player.shieldTime,
+      coins: player.coins,
+      coinTotal: this.race.coins.length,
       cameraMode: CAMERA_LABELS[this.cameraCtl.mode],
       eliminationIn: this.race.eliminationCountdown,
       playerProgress: clamp((this.race.player.progressDistance / total), 0, 1),
@@ -828,6 +994,9 @@ export class GameEngine {
       progress: p.progressDistance,
       position: this.race.positionOf(p),
       speed: p.speed,
+      coins: p.coins,
+      coinTotal: this.race.coins.length,
+      coinsLeft: this.race.coins.filter((c) => !c.collected).length,
       finished: this.outcomeSent,
       laps: this.race.totalLaps,
     };
@@ -900,6 +1069,25 @@ export class GameEngine {
       this.scene.remove(this.ghostModel.root);
       this.ghostModel.dispose();
       this.ghostModel = null;
+    }
+    if (this.coinMesh) {
+      this.scene.remove(this.coinMesh);
+      this.coinMesh.geometry.dispose();
+      const mats = this.coinMesh.material as THREE.Material[];
+      for (const m of mats) {
+        const map = (m as THREE.MeshPhongMaterial).map;
+        if (map) map.dispose();
+        m.dispose();
+      }
+      this.coinMesh = null;
+    }
+    if (this.coinRing) {
+      this.scene.remove(this.coinRing);
+      this.coinRing.geometry.dispose();
+      const rm = this.coinRing.material as THREE.MeshBasicMaterial;
+      rm.map?.dispose();
+      rm.dispose();
+      this.coinRing = null;
     }
     if (this.trackGroup) {
       this.scene.remove(this.trackGroup);

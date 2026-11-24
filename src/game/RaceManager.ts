@@ -42,6 +42,7 @@ export type RaceEvent =
   | { type: 'boost' }
   | { type: 'pad' }
   | { type: 'item'; item: string }
+  | { type: 'coin'; value: number; total: number }
   | { type: 'eliminate'; name: string; isPlayer: boolean }
   | { type: 'wrongway'; active: boolean };
 
@@ -50,6 +51,14 @@ export interface ItemPickup {
   position: THREE.Vector3;
   progress: number;
   cooldown: number;
+}
+
+export interface CoinPickup {
+  id: number;
+  position: THREE.Vector3;
+  progress: number;
+  collected: boolean;
+  phase: number;
 }
 
 const ITEM_NAMES = ['Turbo', 'Shield', 'Pulse'] as const;
@@ -84,6 +93,7 @@ export class RaceManager {
   private playerItemCooldown = 0;
   private itemTick = 0;
   items: ItemPickup[] = [];
+  coins: CoinPickup[] = [];
   readonly playerStartProgress: number;
   private eventQueue: RaceEvent[] = [];
   finishTime: number | null = null;
@@ -132,6 +142,54 @@ export class RaceManager {
         progress: s.distance,
         cooldown: 0,
       });
+    }
+
+    this.buildCoins();
+  }
+
+  private buildCoins() {
+    const total = this.spline.totalLength;
+    const groups = 11;
+    const perGroup = 5;
+    let id = 0;
+    for (let g = 0; g < groups; g++) {
+      const baseP = 0.045 + (g / groups) * 0.9;
+      const phase = g * 1.87;
+      const lane = Math.sin(phase);
+      for (let i = 0; i < perGroup; i++) {
+        const offset = (i - (perGroup - 1) / 2) * 3.4;
+        const distance = (baseP * total + offset + total) % total;
+        const s = this.spline.sampleAtDistance(distance);
+        const lateral = lane * (s.width / 2 - 1.6) + Math.sin(phase + i * 0.6) * s.width * 0.1;
+        this.coins.push({
+          id,
+          position: s.position.clone().addScaledVector(s.right, lateral).setY(s.position.y + 1.05),
+          progress: s.distance,
+          collected: false,
+          phase: id * 0.7,
+        });
+        id += 1;
+      }
+    }
+  }
+
+  respawnCoins() {
+    for (const coin of this.coins) coin.collected = false;
+  }
+
+  private handleCoins() {
+    const player = this.player;
+    if (player.completed || player.eliminated) return;
+    for (const coin of this.coins) {
+      if (coin.collected) continue;
+      const dx = coin.position.x - player.position.x;
+      const dz = coin.position.z - player.position.z;
+      if (dx * dx + dz * dz < 2.4 * 2.4) {
+        coin.collected = true;
+        player.coins += 1;
+        player.boostAmount = Math.min(100, player.boostAmount + 4);
+        this.eventQueue.push({ type: 'coin', value: 1, total: player.coins });
+      }
     }
   }
 
@@ -266,6 +324,7 @@ export class RaceManager {
     this.updateRubberBand();
     this.updateProgress(dt);
     this.handleItems(dt);
+    this.handleCoins();
     this.handleCollisionEvents();
     this.updateBoostPads();
     this.updateWrongWay(dt);
@@ -342,6 +401,7 @@ export class RaceManager {
       }
       if (newLap > previousLap && dist > 0) {
         kart.lap = newLap;
+        if (kart.isPlayer && newLap > 1) this.respawnCoins();
         const lapTime = this.elapsed - kart.lapStart;
         if (previousLap >= 1 && lapTime > 3) {
           kart.lastLap = lapTime;

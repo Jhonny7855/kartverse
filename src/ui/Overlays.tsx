@@ -93,6 +93,18 @@ export function ResultsScreen({
                 <span className="result-stat-label">Boosts</span>
                 <span className="result-stat-value">{outcome.boostUses}</span>
               </div>
+              <div className="result-stat">
+                <span className="result-stat-label">Coins</span>
+                <span className="result-stat-value" style={{ color: outcome.coins > 0 ? 'var(--yellow)' : undefined }}>
+                  {outcome.coins}
+                </span>
+              </div>
+              <div className="result-stat">
+                <span className="result-stat-label">Coin Bonus</span>
+                <span className="result-stat-value" style={{ color: outcome.coins > 0 ? 'var(--yellow)' : undefined }}>
+                  +{outcome.coins * 4}
+                </span>
+              </div>
             </div>
             {isRecord && (
               <div className="reward-chip" style={{ justifyContent: 'center' }}>

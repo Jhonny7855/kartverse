@@ -129,6 +129,10 @@ export function CareerScreen({
                 <span className="stat-tile-label">Drift Pts</span>
               </div>
               <div className="stat-tile">
+                <span className="stat-tile-value" style={{ color: 'var(--yellow)' }}>{formatNumber(profile.coins)}</span>
+                <span className="stat-tile-label">Coins</span>
+              </div>
+              <div className="stat-tile">
                 <span className="stat-tile-value">{profile.tracksPlayed.length}/{TRACKS.length}</span>
                 <span className="stat-tile-label">Circuits</span>
               </div>

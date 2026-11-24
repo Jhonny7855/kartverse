@@ -129,6 +129,22 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     reward: 400,
     xp: 260,
   },
+  {
+    id: 'coin-1',
+    name: 'Pocket Change',
+    description: 'Collect 50 coins on the circuit.',
+    category: 'collector',
+    reward: 250,
+    xp: 180,
+  },
+  {
+    id: 'coin-2',
+    name: 'Midas Touch',
+    description: 'Collect 500 coins in total.',
+    category: 'collector',
+    reward: 900,
+    xp: 620,
+  },
 ];
 
 export const ACHIEVEMENT_MAP = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));

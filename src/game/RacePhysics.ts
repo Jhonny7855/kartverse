@@ -61,6 +61,7 @@ export interface KartRuntime {
   hitCount: number;
   boostUses: number;
   itemCooldown: number;
+  coins: number;
   rubberBand: number;
   stuckTimer: number;
   respawnCooldown: number;
@@ -140,6 +141,7 @@ export function createKartRuntime(
     hitCount: 0,
     boostUses: 0,
     itemCooldown: 0,
+    coins: 0,
     rubberBand: 0,
     stuckTimer: 0,
     respawnCooldown: 0,
