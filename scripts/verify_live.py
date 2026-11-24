@@ -19,7 +19,11 @@ def run():
         skip = pg.get_by_text("Skip intro")
         print("skip intro present:", skip.count())
         if skip.count():
-            skip.click()
+            # The boot sequence auto-advances, so the button can detach mid-click.
+            try:
+                skip.click(timeout=6000)
+            except Exception as exc:
+                print("skip click skipped:", type(exc).__name__)
         pg.wait_for_timeout(1200)
         print("nav items:", pg.locator(".menu-nav-item").count())
         pg.screenshot(path="scripts/out/live_menu.png")
